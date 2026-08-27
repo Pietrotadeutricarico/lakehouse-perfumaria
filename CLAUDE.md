@@ -33,7 +33,13 @@ databricks bundle validate --strict --target dev --profile DEFAULT
 databricks bundle deploy   --target dev --profile DEFAULT
 bash scripts/subir-raw.sh  DEFAULT           # CSVs -> Volume
 databricks bundle run rotaperfume_pipeline --target dev --profile DEFAULT
+
+bash scripts/rodar-tarefa.sh DEFAULT ml_features   # UMA tarefa (~1min vs ~12min)
 ```
+
+Iterar com `rodar-tarefa.sh` (que envolve `bundle run --only`): cada tarefa serverless paga o
+próprio tempo de partida, e o job inteiro paga uma vez por tarefa. Rode o job completo só no
+fim, para ver o DAG verde — não como forma de testar.
 
 Order matters twice: the catalog must exist before the deploy creates schemas, and the Volume must
 exist before files are uploaded into it.
@@ -57,6 +63,7 @@ lakehouse_rotaperfume
 │              └── 10 Delta tables      ← everything STRING, dirt intact
 ├── silver   ── 10 tabelas limpas e tipadas, com CHECK constraints
 └── gold     ── 4 dimensões + fato_vendas (191.080) + 3 marts
+             └── features_treino / features_cliente  ← camada de ML
 ```
 
 `raw` (files in a Volume) is deliberately distinct from `bronze` (tables), so lineage terminates in
@@ -169,6 +176,35 @@ returns are **−1.264.758,30**; margin is **41.125.619,86 (40,2%)**.
   `CASE` written from memory returns zero on every row, silently.
 - **Marts read only `fato_vendas`.** Never a second fact per department: they diverge within
   months and nobody knows which is right.
+
+## A camada de ML (`src/ml/`)
+
+`11-features.py` produz uma linha por cliente a partir de uma **data de corte**, e é a regra que
+tudo aqui obedece:
+
+- **Toda fonte é filtrada pela data dela na primeira linha da leitura.** Se o filtro descer para
+  depois de uma agregação, o vazamento entra sem avisar. `MIN(recencia_dias)` negativo é a
+  assinatura disso.
+- **Nunca ler `gold.dim_cliente` numa feature.** `dias_sem_comprar`, `receita_acumulada` e
+  `total_pedidos` agregam a base inteira, sem corte — qualquer uma é vazamento. Ela serve só
+  para nome e cidade, depois da pontuação.
+- **Uma função, duas tabelas.** `montar_features(referencia)` gera `features_treino`
+  (corte 2026-08-01, com o alvo `comprou_em_7d`) e `features_cliente` (corte 2026-08-31, sem
+  alvo). Chamar a mesma função é o que impede treino e score de divergirem — *training/serving
+  skew*.
+- **Nada de `current_date()`.** O "hoje" deste dataset é `2026-08-31`, fixo.
+- **`.cast("double")` em toda feature numérica.** Soma de receita sai da gold como
+  `DECIMAL(18,2)` e o registro do modelo quebra depois com *"Object of type Decimal is not JSON
+  serializable"*.
+- **`F.least()` ignora NULL e devolve o outro valor.** No teto do `atraso_relativo` isso mandaria
+  os 80 clientes de um pedido só para o topo da fila. O teto vai dentro de um
+  `when(intervalo.isNotNull() & (intervalo > 0), ...)`.
+- **Ausência é 0, não NULL** — 498 clientes não têm nenhuma oportunidade. Só as features de ritmo
+  podem ser nulas.
+
+Números de referência: **2.815** clientes no treino, **2.816** no score, taxa base **10,12%**
+(285 compraram na semana seguinte ao corte). Essa taxa é a régua: 20 de cada 200 ligações às
+cegas viram pedido.
 
 ## SQL tasks
 

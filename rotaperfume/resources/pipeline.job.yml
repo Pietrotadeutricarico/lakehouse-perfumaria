@@ -11,8 +11,9 @@
 #                 -> gold_fato_vendas                      grao de item de pedido
 #                    -> gold_marts                         um mart por diretoria
 #                       -> testes                          9 testes que PARAM o job
-#                          -> alertas   <- entrega 5      expectativas e alertas
-#                             -> dashboard <- entrega 6   o resultado na tela
+#                          -> ml_features  <- camada ML   uma linha por cliente
+#
+# O dashboard (entrega 5) e' recurso separado, em dashboard.dashboard.yml.
 #
 # Cada tarefa nova entra com `depends_on` na anterior: se a conferencia falha,
 # nada a jusante roda -- que e' exatamente o ponto da entrega 1. A ordem nao e'
@@ -164,6 +165,22 @@ resources:
               path: ../src/gold/08-testes.sql
               source: WORKSPACE
             warehouse_id: ${var.warehouse_id}
+
+        # --- camada de ML -------------------------------------------------
+        # Depende de `testes`: modelo nao se treina com dado que ainda nao
+        # passou nos testes de qualidade. Se um teste falha, a feature nem
+        # chega a ser calculada.
+        - task_key: ml_features
+          description: >-
+            Uma linha por cliente com 20 features calculadas ate uma data de
+            corte. A mesma funcao gera features_treino (com rotulo) e
+            features_cliente (sem), o que impede training/serving skew.
+          depends_on:
+            - task_key: testes
+          notebook_task:
+            notebook_path: ../src/ml/11-features.py
+            base_parameters:
+              catalog: ${var.catalog}
 
       schedule:
         # todo dia as 6h, horario de Brasilia -- antes de qualquer um chegar.

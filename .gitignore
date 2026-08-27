@@ -1,6 +1,7 @@
 # Material didatico do curso: os prompts sao de autoria do instrutor.
 # O codigo deste repositorio e a implementacao; o material fica fora.
 .llm/
+prd/
 
 # Ambiente e artefatos de build
 .venv/
