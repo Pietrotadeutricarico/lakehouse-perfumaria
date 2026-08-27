@@ -112,9 +112,18 @@ docs/decisoes.md        por que cada decisao foi tomada
 CLAUDE.md               contexto de arquitetura para agentes de IA
 ```
 
-Os dados são **sintéticos**: uma distribuidora fictícia, gerada com semente fixa. A sujeira
-neles (CNPJ em três formatos, datas em dois padrões, cadastros duplicados) é intencional — é o
-material sobre o qual a camada silver trabalha.
+### Sobre os dados
+
+Os dados são **sintéticos**: uma distribuidora fictícia, gerada por script com semente fixa.
+Nenhum registro corresponde a empresa, pessoa ou transação real. Razões sociais, nomes de
+vendedores, endereços e CNPJs são gerados aleatoriamente — dos 3.040 CNPJs, 28 passam na
+validação de dígito verificador, exatamente o que o acaso prevê para números aleatórios
+(3.040 ÷ 121 ≈ 25). Se algum coincidir com um documento real, é coincidência estatística, e o
+registro associado a ele é inventado.
+
+A sujeira nos dados (CNPJ em três formatos, datas em dois padrões, cadastros duplicados,
+quantidades negativas) é **intencional**: é o material sobre o qual a camada silver trabalha, e
+sem ela o projeto não teria o que ensinar.
 
 ---
 

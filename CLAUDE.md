@@ -100,7 +100,7 @@ The specs in `.llm/` were written against a different workspace. What is actuall
 | | |
 |---|---|
 | Profile / host | comes from `~/.databrickscfg` — `databricks.yml` declares no host, so always pass `--profile <name>` |
-| SQL Warehouse | `dc09ed3b2742b090` (**not** the `666be37e3fededf2` the specs name) |
+| SQL Warehouse | set via the `warehouse_id` bundle variable — the specs name a different one, from another workspace |
 | Data location | `erp/`, `crm/` at repo root (specs say `dados/erp`, `dados/crm`) |
 | Bundle location | `rotaperfume/` at repo root (specs say `aulas/aula-02-.../rotaperfume/`) |
 
