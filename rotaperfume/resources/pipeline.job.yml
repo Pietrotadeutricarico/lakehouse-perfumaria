@@ -1,0 +1,175 @@
+# O job da noite. Hoje ele tem UMA tarefa; nas proximas cinco entregas ele
+# cresce sem mudar de nome nem de arquivo:
+#
+#   raw_conferencia                  <- entrega 1 (feita)  confere o Volume
+#     -> bronze_ingestao             <- entrega 2 (feita)  arquivo vira tabela
+#        -> silver_clientes          <- entrega 3 (feita)  as quatro rodam
+#           silver_pedidos                                 EM PARALELO
+#           silver_itens_produtos
+#           silver_crm_financeiro
+#              -> gold_dimensoes     <- entrega 4 (esta)   dimensoes conformadas
+#                 -> gold_fato_vendas                      grao de item de pedido
+#                    -> gold_marts                         um mart por diretoria
+#                       -> testes                          9 testes que PARAM o job
+#                          -> alertas   <- entrega 5      expectativas e alertas
+#                             -> dashboard <- entrega 6   o resultado na tela
+#
+# Cada tarefa nova entra com `depends_on` na anterior: se a conferencia falha,
+# nada a jusante roda -- que e' exatamente o ponto da entrega 1. A ordem nao e'
+# detalhe de execucao: ela E' o conteudo.
+
+resources:
+  jobs:
+    rotaperfume_pipeline:
+      name: rotaperfume_pipeline
+      description: Pipeline da RotaPerfume, do raw ao gold.
+
+      tasks:
+        - task_key: raw_conferencia
+          description: >-
+            Confere que os 10 arquivos do ERP e do CRM chegaram ao Volume
+            bronze.raw e tem conteudo. Falha o job se faltar algum.
+          notebook_task:
+            notebook_path: ../src/raw/conferencia.py
+            base_parameters:
+              catalog: ${var.catalog}
+          # Sem new_cluster e sem job_cluster_key: no Free Edition tudo roda
+          # em serverless, e serverless e' justamente a ausencia de cluster
+          # declarado. Nunca configure cluster neste projeto.
+
+        - task_key: bronze_ingestao
+          description: >-
+            Le os 10 CSVs do Volume bronze.raw e grava as 10 tabelas Delta da
+            bronze -- tudo como texto, sem limpeza. Falha se a contagem de
+            alguma tabela divergir do que a conferencia registrou.
+          depends_on:
+            # Se a conferencia falhar, a bronze nao roda. Nunca ingerir dado
+            # que a gente ja sabe que chegou pela metade.
+            - task_key: raw_conferencia
+          notebook_task:
+            notebook_path: ../src/bronze/ingestao.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        # --- entrega 3: a silver ------------------------------------------
+        # As quatro dependem de bronze_ingestao e de mais NADA -- nenhuma
+        # depende da outra, entao rodam em paralelo. Conferido: os joins
+        # itens x produtos e carteira x vendedores acontecem DENTRO do
+        # mesmo arquivo, entao nao ha dependencia cruzada.
+        #
+        # sql_task roda no SQL Warehouse, nao em serverless de notebook.
+        # Um arquivo .sql pode conter varios statements separados por ';'
+        # -- e' o que permite CREATE + ALTER ADD CONSTRAINT + COMMENT no
+        # mesmo arquivo, por assunto.
+        - task_key: silver_clientes
+          description: >-
+            Normaliza CNPJ para 14 digitos, padroniza razao social, converte
+            datas nos dois formatos e deduplica 40 CNPJs repetidos.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/01-clientes.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: silver_pedidos
+          description: >-
+            Tipa valor_total, promove o cancelamento a coluna booleana e
+            cria valor_liquido, ano e mes.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/02-pedidos.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: silver_itens_produtos
+          description: >-
+            Tipa produtos e itens de pedido, sinaliza devolucao (nunca
+            descarta) e marca SKU descontinuado.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/03-itens-e-produtos.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: silver_crm_financeiro
+          description: >-
+            Vendedores, carteira, oportunidades, visitas, pagamentos e
+            estoque. Expoe a carteira orfa em vez de conserta-la.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/04-crm-e-financeiro.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        # --- entrega 4: a gold -------------------------------------------
+        # Aqui a cadeia volta a ser estrita: dimensao -> fato -> mart ->
+        # teste. Cada etapa depende do resultado da anterior, e a ultima e'
+        # obrigatoria. Teste que nao quebra o job nao e' teste, e' relatorio.
+        - task_key: gold_dimensoes
+          description: >-
+            dim_cliente, dim_produto, dim_vendedor e dim_calendario --
+            conformadas, lendo so da silver.
+          depends_on:
+            - task_key: silver_clientes
+            - task_key: silver_pedidos
+            - task_key: silver_itens_produtos
+            - task_key: silver_crm_financeiro
+          sql_task:
+            file:
+              path: ../src/gold/05-dimensoes.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: gold_fato_vendas
+          description: >-
+            fato_vendas no grao de item de pedido. Exclui cancelado, mantem
+            devolucao com valor negativo. 191.080 linhas.
+          depends_on:
+            - task_key: gold_dimensoes
+          sql_task:
+            file:
+              path: ../src/gold/06-fato-vendas.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: gold_marts
+          description: >-
+            Tres marts por diretoria, todos sobre o MESMO fato -- e por isso
+            somam igual.
+          depends_on:
+            - task_key: gold_fato_vendas
+          sql_task:
+            file:
+              path: ../src/gold/07-marts.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: testes
+          description: >-
+            Os 9 testes de qualidade. Cada um levanta raise_error quando
+            falha, e o job PARA -- o dashboard fica com o dado de ontem em
+            vez do dado errado de hoje.
+          depends_on:
+            - task_key: gold_marts
+          sql_task:
+            file:
+              path: ../src/gold/08-testes.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+      schedule:
+        # todo dia as 6h, horario de Brasilia -- antes de qualquer um chegar.
+        # No target dev isso nasce PAUSED, via presets no databricks.yml.
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: America/Sao_Paulo
+
+      queue:
+        enabled: true

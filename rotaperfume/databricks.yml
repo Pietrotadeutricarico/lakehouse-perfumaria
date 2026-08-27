@@ -1,0 +1,56 @@
+# This is a Declarative Automation Bundle definition for rotaperfume.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+bundle:
+  name: rotaperfume
+  uuid: dde7e35c-bac0-4ad5-aa89-c14fe574d6f8
+
+include:
+  - resources/*.yml
+
+# Variable declarations. These variables are assigned in the dev/prod targets below.
+variables:
+  catalog:
+    description: The catalog to use
+    default: lakehouse_rotaperfume
+  warehouse_id:
+    description: >-
+      SQL Warehouse que roda as tarefas sql_task e o dashboard. Descubra o seu com
+      `databricks experimental aitools tools get-default-warehouse --profile <perfil>`
+      e sobrescreva com --var warehouse_id=<id>, ou edite o default abaixo.
+    default: dc09ed3b2742b090
+
+targets:
+  dev:
+    default: true
+    # Sem `workspace.host`: o endereco vem do profile do .databrickscfg, entao
+    # quem clonar usa o proprio workspace sem editar nada. Sempre passe
+    # --profile <nome> nos comandos.
+
+    # ARMADILHA: NAO use `mode: development` neste projeto.
+    # Ele prefixa o nome dos recursos com '[dev seu_usuario]' -- INCLUSIVE os
+    # SCHEMAS do Unity Catalog, que virariam dev_fulano_bronze e quebrariam todo
+    # o SQL das proximas entregas (que referenciam bronze/silver/gold direto).
+    # O unico efeito do `mode: development` que a gente realmente quer e' pausar
+    # o agendamento -- e isso da' para pedir explicitamente:
+    presets:
+      trigger_pause_status: PAUSED
+
+    variables:
+      catalog: lakehouse_rotaperfume
+
+  prod:
+    mode: production
+    workspace:
+      # root_path fixo garante uma copia unica. ${workspace.current_user.userName}
+      # resolve para quem esta deployando, em vez de um e-mail no codigo.
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+
+    # ATENCAO: no Free Edition ha' um unico workspace, entao dev e prod apontam
+    # para o MESMO catalogo. Deployar prod sobrescreve o job do dev. Nas aulas
+    # so' o target dev e' exercitado.
+    variables:
+      catalog: lakehouse_rotaperfume
+
+    permissions:
+      - user_name: ${workspace.current_user.userName}
+        level: CAN_MANAGE

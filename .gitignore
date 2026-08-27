@@ -1,0 +1,16 @@
+# Material didatico do curso: os prompts sao de autoria do instrutor.
+# O codigo deste repositorio e a implementacao; o material fica fora.
+.llm/
+
+# Ambiente e artefatos de build
+.venv/
+.databricks/
+__pycache__/
+*.egg-info
+build/
+dist/
+.pytest_cache/
+
+# Rascunhos
+scratch/
+**/explorations/

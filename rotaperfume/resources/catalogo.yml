@@ -1,0 +1,42 @@
+# O catalogo como CODIGO.
+#
+# O catalogo em si NAO esta aqui -- ele nasce em scripts/criar-catalogo.sh, por
+# SQL. O motivo esta comentado naquele script (Free Edition + Default Storage).
+# Tudo o que vem DEPOIS do catalogo -- schemas e volumes -- e' recurso do bundle
+# e volta identico com um `databricks bundle deploy`.
+
+resources:
+  schemas:
+    bronze:
+      catalog_name: ${var.catalog}
+      name: bronze
+      comment: >-
+        Camada bronze: o dado como saiu do sistema de origem, sem regra de
+        negocio aplicada. O volume `raw` guarda os arquivos originais.
+
+    silver:
+      catalog_name: ${var.catalog}
+      name: silver
+      comment: >-
+        Camada silver: o dado limpo, tipado e deduplicado, com as chaves
+        conferidas -- pronto para ser combinado entre sistemas.
+
+    gold:
+      catalog_name: ${var.catalog}
+      name: gold
+      comment: >-
+        Camada gold: o dado agregado por pergunta de negocio, servindo
+        dashboards e analises diretamente.
+
+  volumes:
+    raw:
+      catalog_name: ${var.catalog}
+      # Referenciar o recurso (e nao a string "bronze") faz o bundle criar o
+      # schema ANTES do volume -- sem isso a ordem nao e' garantida.
+      schema_name: ${resources.schemas.bronze.name}
+      name: raw
+      volume_type: MANAGED
+      comment: >-
+        Landing zone dos arquivos originais do ERP e do CRM, byte por byte.
+        Raw e' arquivo; bronze e' tabela. Quando alguem perguntar "esse numero
+        veio de onde?", a resposta e' um arquivo daqui.
