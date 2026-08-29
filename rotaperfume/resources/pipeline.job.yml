@@ -12,6 +12,8 @@
 #                    -> gold_marts                         um mart por diretoria
 #                       -> testes                          9 testes que PARAM o job
 #                          -> ml_features  <- camada ML   uma linha por cliente
+#                             -> ml_modelo                 baseline, treino e score
+#                                -> ml_fila                as 200 ligacoes da semana
 #
 # O dashboard (entrega 5) e' recurso separado, em dashboard.dashboard.yml.
 #
@@ -153,6 +155,21 @@ resources:
               source: WORKSPACE
             warehouse_id: ${var.warehouse_id}
 
+        # A tabela do caminho de volta. Depende de gold_marts e nao das
+        # tarefas de ML: ela nao consome modelo, so' precisa da gold de pe'.
+        - task_key: gold_retorno_ligacao
+          description: >-
+            Cria (uma vez) a tabela onde o time registra o resultado da
+            ligacao. CREATE TABLE IF NOT EXISTS: e a unica tabela do projeto
+            alimentada por pessoas, e um redeploy nao pode apaga-la.
+          depends_on:
+            - task_key: gold_marts
+          sql_task:
+            file:
+              path: ../src/gold/11-retorno-ligacao.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
         - task_key: testes
           description: >-
             Os 9 testes de qualidade. Cada um levanta raise_error quando
@@ -181,6 +198,33 @@ resources:
             notebook_path: ../src/ml/11-features.py
             base_parameters:
               catalog: ${var.catalog}
+
+        - task_key: ml_modelo
+          description: >-
+            Mede tres baselines simples ANTES de treinar, treina o modelo de
+            propensao, registra no Unity Catalog com alias @prod e pontua os
+            clientes. Tres asserts interrompem a tarefa -- inclusive um que
+            falha se o AUC ficar bom demais, porque isso e vazamento.
+          depends_on:
+            - task_key: ml_features
+          notebook_task:
+            notebook_path: ../src/ml/12-modelo.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+        - task_key: ml_fila
+          description: >-
+            Transforma o score em decisao: as 200 ligacoes da semana com
+            nome, motivo em portugues e o que oferecer, mais as quatro
+            funcoes-ferramenta que um agente consulta. Tres testes quebram
+            o job -- entre eles, o que exige exatamente 200 linhas.
+          depends_on:
+            - task_key: ml_modelo
+          sql_task:
+            file:
+              path: ../src/ml/13-fila.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
 
       schedule:
         # todo dia as 6h, horario de Brasilia -- antes de qualquer um chegar.

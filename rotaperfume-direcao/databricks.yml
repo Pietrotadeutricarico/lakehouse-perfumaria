@@ -1,0 +1,47 @@
+bundle:
+  name: rotaperfume-direcao
+
+variables:
+  sql_warehouse_id:
+    description: SQL Warehouse ID
+  genie_space_id:
+    description: Default Genie Space ID
+  genie_space_name:
+    description: Genie Space display name
+
+resources:
+  apps:
+    app:
+      name: "rotaperfume-direcao"
+      description: "A fila dos 200 na tela do diretor"
+      source_code_path: ./
+
+      # Start the app automatically on deploy.
+      lifecycle:
+        started: true
+      user_api_scopes:
+        - dashboards.genie
+
+      # The resources which this app has access to.
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.sql_warehouse_id}
+            permission: CAN_USE
+        - name: genie-space
+          genie_space:
+            name: ${var.genie_space_name}
+            space_id: ${var.genie_space_id}
+            permission: CAN_RUN
+
+targets:
+  default:
+    default: true
+    # Sem `workspace.host`: o endereco vem do profile do .databrickscfg, entao
+    # quem clonar usa o proprio workspace sem editar nada. Sempre passe
+    # --profile <nome> nos comandos.
+
+    variables:
+      sql_warehouse_id: dc09ed3b2742b090
+      genie_space_id: 01f1a34b26b410a0bb74701c9a810877
+      genie_space_name: Rota do Perfume - Direcao

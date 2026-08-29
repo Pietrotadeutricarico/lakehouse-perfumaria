@@ -45,6 +45,16 @@
         "ORDER BY receita DESC\n",
         "LIMIT 20\n"
       ]
+    },
+    {
+      "name": "ds_fila",
+      "displayName": "Fila da semana",
+      "queryLines": [
+        "SELECT vendedor, ordem, cliente_id, razao_social, cidade, uf,\n",
+        "       score, faixa, ticket_medio, motivo, sugestao\n",
+        "FROM fila_semanal\n",
+        "ORDER BY vendedor, ordem\n"
+      ]
     }
   ],
   "pages": [
@@ -749,6 +759,206 @@
       ],
       "pageType": "PAGE_TYPE_CANVAS",
       "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "fila",
+      "displayName": "Fila da semana",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "fila_titulo",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Fila da semana\n\nAs 200 ligacoes em ordem de propensao, com o motivo de cada uma. Filtre pelo seu nome. Clientes de vendedor desligado ficam fora da fila.\n"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fila_filtro_vendedor",
+            "queries": [
+              {
+                "name": "q_fila_vendedor",
+                "query": {
+                  "datasetName": "ds_fila",
+                  "fields": [
+                    {
+                      "name": "vendedor",
+                      "expression": "`vendedor`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "vendedor",
+                    "displayName": "Vendedor",
+                    "queryName": "q_fila_vendedor"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Vendedor"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fila_filtro_faixa",
+            "queries": [
+              {
+                "name": "q_fila_faixa",
+                "query": {
+                  "datasetName": "ds_fila",
+                  "fields": [
+                    {
+                      "name": "faixa",
+                      "expression": "`faixa`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "faixa",
+                    "displayName": "Faixa",
+                    "queryName": "q_fila_faixa"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Faixa"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 1,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "fila_tabela",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_fila",
+                  "fields": [
+                    {
+                      "name": "ordem",
+                      "expression": "`ordem`"
+                    },
+                    {
+                      "name": "razao_social",
+                      "expression": "`razao_social`"
+                    },
+                    {
+                      "name": "cidade",
+                      "expression": "`cidade`"
+                    },
+                    {
+                      "name": "score",
+                      "expression": "`score`"
+                    },
+                    {
+                      "name": "faixa",
+                      "expression": "`faixa`"
+                    },
+                    {
+                      "name": "motivo",
+                      "expression": "`motivo`"
+                    },
+                    {
+                      "name": "sugestao",
+                      "expression": "`sugestao`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "ordem",
+                    "displayName": "#"
+                  },
+                  {
+                    "fieldName": "razao_social",
+                    "displayName": "Cliente"
+                  },
+                  {
+                    "fieldName": "cidade",
+                    "displayName": "Cidade"
+                  },
+                  {
+                    "fieldName": "score",
+                    "displayName": "Nota"
+                  },
+                  {
+                    "fieldName": "faixa",
+                    "displayName": "Faixa"
+                  },
+                  {
+                    "fieldName": "motivo",
+                    "displayName": "Por que ligar"
+                  },
+                  {
+                    "fieldName": "sugestao",
+                    "displayName": "O que oferecer"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "As 200 da semana"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 12,
+            "height": 9
+          }
+        }
+      ]
     }
   ],
   "uiSettings": {

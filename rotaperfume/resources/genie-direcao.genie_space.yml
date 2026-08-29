@@ -1,0 +1,24 @@
+# O SEGUNDO Genie space -- e o argumento esta em ser o segundo.
+#
+# Genie nao e' um por empresa, e' um por AUDIENCIA. O vendedor pergunta
+# "quanto o cliente X comprou"; o diretor pergunta "quanto vale a fila".
+# Se os dois moram no mesmo espaco, as instrucoes brigam: o que serve para
+# um vira ruido para o outro.
+#
+# A instrucao E' o produto. O modelo e' o mesmo e o dado e' o mesmo -- o que
+# faz este espaco responder melhor para a direcao sao vinte linhas de texto
+# escritas por quem entende o negocio, e que moram no Git com revisao e
+# historico. O conteudo esta em direcao.geniespace.json.
+
+resources:
+  genie_spaces:
+    genie_direcao:
+      title: Rota do Perfume · Direção
+      description: >-
+        Espaço da direção comercial: a fila da semana, quanto ela vale, o
+        desempenho do modelo em lift e o retorno das ligações. Não responde
+        com AUC.
+      warehouse_id: ${var.warehouse_id}
+      # o JSON e' inlinado em serialized_space no deploy
+      file_path: ../resources/direcao.geniespace.json
+      parent_path: /Workspace/Users/${workspace.current_user.userName}/genie
