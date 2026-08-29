@@ -146,8 +146,9 @@ function Conteudo({
       <div>
         <h2 className="text-2xl font-bold text-foreground">A semana</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Os contatos com maior chance de virar pedido nos próximos 7 dias
-          {referencia ? ` — fila de ${referencia}` : ''}.
+          Os {num(k?.contatos)} clientes com maior chance de comprar nos próximos 7 dias
+          {referencia ? ` · fila de ${referencia}` : ''}
+          {k?.versao ? ` · modelo versão ${num(k.versao)}` : ''}
         </p>
       </div>
 
@@ -171,30 +172,26 @@ function Conteudo({
         <Kpi
           titulo="Contatos da semana"
           valor={num(k?.contatos).toLocaleString('pt-BR')}
-          apoio={`distribuídos entre ${num(k?.vendedores)} vendedores`}
+          apoio={`${num(k?.vendedores)} vendedores`}
           carregando={kpis.loading}
         />
         <Kpi
           titulo="Receita esperada"
           valor={reais(k?.receita_esperada)}
-          apoio="estimativa: chance × ticket médio de cada cliente"
+          apoio="soma de score × ticket médio"
           carregando={kpis.loading}
         />
         <Kpi
           titulo="Conversão prevista"
           valor={pct(conversaoPrevista, 1)}
-          apoio={`contra ${pct(k?.taxa_base, 1)} ligando às cegas — ${num(
-            k?.lift_top200,
-          ).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}× melhor`}
+          apoio={`contra ${pct(k?.taxa_base, 1)} ligando às cegas`}
           carregando={kpis.loading}
         />
         <Kpi
           titulo="Já trabalhados"
           valor={num(k?.trabalhados).toLocaleString('pt-BR')}
           apoio={
-            num(k?.trabalhados) === 0
-              ? 'ninguém registrou retorno ainda'
-              : `${num(k?.viraram_pedido)} viraram pedido`
+            `${num(k?.viraram_pedido)} viraram pedido`
           }
           carregando={kpis.loading}
         />
@@ -202,9 +199,7 @@ function Conteudo({
 
       <Card className="shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
-          <CardTitle>
-            {vendedor === TODOS ? 'Todos os contatos' : `Fila de ${vendedor}`}
-          </CardTitle>
+          <CardTitle>Quem ligar primeiro</CardTitle>
           <Select value={vendedor} onValueChange={onVendedorChange}>
             <SelectTrigger className="w-[280px]">
               <SelectValue placeholder="Filtrar por vendedor" />
@@ -248,9 +243,11 @@ function Conteudo({
                   <TableRow>
                     <TableHead className="w-12">#</TableHead>
                     <TableHead>Cliente</TableHead>
+                    <TableHead>Vendedor</TableHead>
                     <TableHead className="text-right">Chance</TableHead>
                     <TableHead>Por que ligar</TableHead>
-                    <TableHead className="min-w-[320px]">Como foi a ligação</TableHead>
+                    <TableHead>O que oferecer</TableHead>
+                    <TableHead className="min-w-[260px]">Como foi a ligação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -265,20 +262,18 @@ function Conteudo({
                         <TableCell>
                           <div className="font-medium">{linha.razao_social}</div>
                           <div className="text-xs text-muted-foreground">
-                            {linha.cidade}/{linha.uf} · {linha.vendedor} · ticket{' '}
-                            {reais(linha.ticket_medio)}
+                            {linha.cidade}/{linha.uf} · ticket {reais(linha.ticket_medio)}
                           </div>
                         </TableCell>
+                        <TableCell className="text-sm">{linha.vendedor}</TableCell>
                         <TableCell className="text-right">
                           <Badge variant={num(linha.score) >= 0.5 ? 'default' : 'secondary'}>
                             {pct(linha.score)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm max-w-sm">
-                          <div>{linha.motivo}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {linha.sugestao}
-                          </div>
+                        <TableCell className="text-sm max-w-[15rem]">{linha.motivo}</TableCell>
+                        <TableCell className="text-sm max-w-[15rem] text-muted-foreground">
+                          {linha.sugestao}
                         </TableCell>
 
                         <TableCell>
@@ -301,17 +296,18 @@ function Conteudo({
                           ) : (
                             <div className="space-y-2">
                               <Input
-                                placeholder="Comentário (opcional)"
+                                placeholder="o que o cliente disse"
                                 value={comentarios[id] ?? ''}
                                 onChange={(e) => onComentarioChange(id, e.target.value)}
                                 disabled={gravando === id}
                                 className="h-8 text-xs"
                               />
-                              <div className="flex flex-wrap gap-1">
+                              <div className="grid grid-cols-2 gap-1">
                                 {BOTOES.map((b) => (
                                   <Button
                                     key={b.status}
                                     size="sm"
+                                    className="w-full"
                                     variant={b.status === 'vendeu' ? 'default' : 'outline'}
                                     disabled={gravando !== null}
                                     onClick={() =>

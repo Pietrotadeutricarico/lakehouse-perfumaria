@@ -75,6 +75,8 @@ declare module "@databricks/appkit-ui/react" {
           /** @sqlType DATE */
           referencia: string;
           /** @sqlType BIGINT */
+          versao: number;
+          /** @sqlType BIGINT */
           acertos_top200: number;
           /** @sqlType DOUBLE */
           lift_top200: number;

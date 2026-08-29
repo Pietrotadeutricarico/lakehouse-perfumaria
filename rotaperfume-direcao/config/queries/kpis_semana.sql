@@ -5,6 +5,7 @@ SELECT
   f.vendedores,
   f.receita_esperada,
   f.referencia,
+  m.versao,
   m.acertos_top200,
   m.lift_top200,
   m.taxa_base,
@@ -19,7 +20,7 @@ FROM (
 ) f
 CROSS JOIN (
   -- a ULTIMA versao do modelo, nao uma qualquer
-  SELECT acertos_top200, lift_top200, taxa_base
+  SELECT versao, acertos_top200, lift_top200, taxa_base
   FROM lakehouse_rotaperfume.gold.modelo_metricas
   QUALIFY ROW_NUMBER() OVER (ORDER BY versao DESC) = 1
 ) m
